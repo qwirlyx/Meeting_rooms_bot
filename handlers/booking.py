@@ -180,7 +180,7 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Ошибка данных сессии.")
         return
 
-    success = await create_booking(room_id, callback.from_user.id, start, end)
+        success = await create_booking(room_id, callback.from_user.id, start, end)
 
     if success:
         await callback.message.answer(
@@ -190,6 +190,7 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
             "Желаем вам успешных переговоров 😎",
             parse_mode="Markdown"
         )
+        await state.clear()  # Очищаем ТОЛЬКО при успехе
     else:
         # Проверка пересечений: проверяем, какой интервал занят
         overlap = await find_overlap_interval(room_id, start, end)
@@ -221,8 +222,10 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
                     ]]
                 ),
             )
+            # НЕ очищаем state здесь — оставляем room_id и date для обработки альтернативы
+        else:
+            await state.clear()  # Если альтернатив нет — очищаем
 
-    await state.clear()
     await callback.answer()
 
 # ────────────────────────────────────────────────
@@ -354,4 +357,5 @@ async def cancel_booking(callback: CallbackQuery):
         )
         await callback.answer("Бронь отменена")
     else:
+
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
