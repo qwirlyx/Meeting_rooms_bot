@@ -5,9 +5,8 @@ from config import BOT_TOKEN
 from database import init_db, seed_rooms
 from handlers import start, booking
 
-# Добавлено для webhook (необходимые импорты для хостинга)
+# Добавлено для webhook (для хостинга на Render)
 from aiohttp import web
-from aiogram.webhook import AIOHTTPWebApp
 
 # Создаём экземпляр бота и диспетчера один раз на всё приложение.
 bot = Bot(token=BOT_TOKEN)
@@ -22,30 +21,33 @@ async def main():
     await init_db()
     await seed_rooms()
 
-    # Настройка webhook (для работы на хостинге)
+    # Настройка webhook (для aiogram 3.x)
+    async def handle_webhook(request):
+        update = await bot.update_from_request(request)
+        await dp.feed_update(bot, update)
+        return web.Response()
+
     app = web.Application()
-    webhook_requests_handler = AIOHTTPWebApp(dp)
-    webhook_requests_handler.register(app, path="/webhook")
+    app.router.add_post('/webhook', handle_webhook)
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)  # Port 8080 для Render.com
+    site = web.TCPSite(runner, "0.0.0.0", 8080)  # Port 8080 для Render
     await site.start()
 
-    # Установка webhook URL 
-    webhook_url = "https://meeting-rooms-bot.onrender.com/webhook" 
+    # Установка webhook URL (из твоего скрина — https://meeting-rooms-bot.onrender.com)
+    webhook_url = "https://meeting-rooms-bot.onrender.com/webhook"
     await bot.set_webhook(webhook_url)
 
     try:
-        await asyncio.Event().wait()  # Бесконечный цикл для работы бота
+        await asyncio.Event().wait()  # Бесконечный цикл для работы
     finally:
-        await bot.delete_webhook()  # Очистка webhook при остановке
+        await bot.delete_webhook()
         await runner.cleanup()
 
-    # Для теста:
+    # Старый polling (раскомментируй для теста локально)
     # await dp.start_polling(bot)
 
 if __name__ == "__main__":
     # Запускаем основной event-loop бота.
     asyncio.run(main())
-
