@@ -100,7 +100,7 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
     date_str = callback.data.split("_")[1]
     date = datetime.date.fromisoformat(date_str)
 
-    today_msk = datetime.date.today(MOSCOW_TZ)   # ← или datetime.datetime.now(MOSCOW_TZ).date()
+    today_msk = datetime.date.today(MOSCOW_TZ)
     if date < today_msk:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
@@ -113,11 +113,11 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
 async def process_custom_date(message: Message, state: FSMContext):
     try:
         text = message.text.strip()
-        # Пытаемся разобрать дату в формате DD.MM.YYYY, при неудаче — в ISO (YYYY-MM-DD)
         try:
             date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
         except ValueError:
             date = datetime.date.fromisoformat(text)
+
         today_msk = datetime.date.today(MOSCOW_TZ)
         if date < today_msk:
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
@@ -128,7 +128,7 @@ async def process_custom_date(message: Message, state: FSMContext):
         await show_slots(message, state, room_id, date)
 
     except ValueError:
-        await message.answer("Неверный формат даты. Попробуйте YYYY-MM-DD.")
+        await message.answer("Неверный формат даты. Попробуйте DD.MM.YYYY или YYYY-MM-DD.")
 
 # ────────────────────────────────────────────────
 #               Показ слотов + проверка доступности
@@ -370,3 +370,4 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
