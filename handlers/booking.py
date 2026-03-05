@@ -100,13 +100,14 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
     date_str = callback.data.split("_")[1]
     date = datetime.date.fromisoformat(date_str)
 
-    today_msk = datetime.date.today(MOSCOW_TZ)
+    today_msk = datetime.datetime.now(MOSCOW_TZ).date()
     if date < today_msk:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
 
     await show_slots(callback, state, room_id, date)
+    await callback.answer()
 
 
 @router.message(BookingState.date_selected)
@@ -118,7 +119,7 @@ async def process_custom_date(message: Message, state: FSMContext):
         except ValueError:
             date = datetime.date.fromisoformat(text)
 
-        today_msk = datetime.date.today(MOSCOW_TZ)
+        today_msk = datetime.datetime.now(MOSCOW_TZ).date()
         if date < today_msk:
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
             return
@@ -371,5 +372,6 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
 
 
