@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 from aiogram import Router
 from aiogram.types import (
     CallbackQuery,
@@ -98,7 +100,8 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
     date_str = callback.data.split("_")[1]
     date = datetime.date.fromisoformat(date_str)
 
-    if date < datetime.date.today():
+    today_msk = datetime.date.today(MOSCOW_TZ)   # ← или datetime.datetime.now(MOSCOW_TZ).date()
+    if date < today_msk:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
@@ -115,7 +118,8 @@ async def process_custom_date(message: Message, state: FSMContext):
             date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
         except ValueError:
             date = datetime.date.fromisoformat(text)
-        if date < datetime.date.today():
+        today_msk = datetime.date.today(MOSCOW_TZ)
+        if date < today_msk:
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
             return
 
@@ -366,4 +370,3 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
-
