@@ -7,7 +7,7 @@ from handlers import start, booking
 
 # Добавлено для webhook (для Render)
 from aiohttp import web
-from aiogram.types import Update  # Добавлено для Update
+from aiogram.types import Update  # ← это было нужно для model_validate_json
 
 # Создаём экземпляр бота и диспетчера один раз на всё приложение.
 bot = Bot(token=BOT_TOKEN)
@@ -22,32 +22,36 @@ async def main():
     await init_db()
     await seed_rooms()
 
-    # Настройка webhook для aiogram 3.x
+    # Настройка webhook для aiogram 3.x (правильный способ)
     async def handle_webhook(request):
-        text = await request.text()
-        update = Update.model_validate_json(text)  # Исправлено на model_validate_json
-        await dp.feed_update(bot, update)
-        return web.Response()
+        try:
+            text = await request.text()
+            update = Update.model_validate_json(text)  # ← исправлено: парсим JSON → Update
+            await dp.feed_update(bot, update)
+            return web.Response()
+        except Exception as e:
+            print(f"Webhook error: {e}")
+            return web.Response(status=200)  # Telegram требует 200 OK даже при ошибке
 
     app = web.Application()
     app.router.add_post('/webhook', handle_webhook)
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)  # Port 8080 для Render
+    site = web.TCPSite(runner, "0.0.0.0", 8080)  # Port 8080 — Render требует
     await site.start()
 
-    # Установка webhook URL (твой app — meeting-rooms-bot)
+    # Установка webhook URL (твой реальный URL с Render)
     webhook_url = "https://meeting-rooms-bot.onrender.com/webhook"
     await bot.set_webhook(webhook_url)
 
     try:
-        await asyncio.Event().wait()  # Бесконечный цикл для работы
+        await asyncio.Event().wait()  # Бесконечный цикл — бот живёт
     finally:
         await bot.delete_webhook()
         await runner.cleanup()
 
-    # Старый polling (раскомментируй для локального теста)
+    # Старый polling — раскомментируй для локального теста
     # await dp.start_polling(bot)
 
 if __name__ == "__main__":
