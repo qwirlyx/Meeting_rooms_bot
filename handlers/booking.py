@@ -166,21 +166,27 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Этот слот занят.")
         return
 
-    parts = callback.data.split("_")
-    room_id = int(parts[1])
-    date_str = parts[2]
-    hour = int(parts[3])
+    # Парсинг callback_data
+    try:
+        _, room_id_str, date_str, hour_str = callback.data.split("_")
+        room_id = int(room_id_str)
+        hour = int(hour_str)
+        date = datetime.date.fromisoformat(date_str)
+    except (ValueError, IndexError):
+        await callback.answer("Ошибка в данных кнопки.")
+        return
 
-    date = datetime.date.fromisoformat(date_str)
     start = datetime.datetime.combine(date, datetime.time(hour, 0))
     end = start + datetime.timedelta(hours=1)
 
+    # Проверяем, что состояние соответствует выбранному слоту
     data = await state.get_data()
     if data.get("room_id") != room_id or data.get("date") != date:
-        await callback.answer("Ошибка данных сессии.")
+        await callback.answer("Ошибка: данные сессии не совпадают.")
         return
 
-        success = await create_booking(room_id, callback.from_user.id, start, end)
+    # Пытаемся создать бронь
+    success = await create_booking(room_id, callback.from_user.id, start, end)
 
     if success:
         await callback.message.answer(
@@ -190,9 +196,9 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
             "Желаем вам успешных переговоров 😎",
             parse_mode="Markdown"
         )
-        await state.clear()  # Очищаем ТОЛЬКО при успехе
+        await state.clear()
     else:
-        # Проверка пересечений: проверяем, какой интервал занят
+        # Пытаемся понять, почему не удалось
         overlap = await find_overlap_interval(room_id, start, end)
         if overlap:
             busy_start, busy_end = overlap
@@ -202,11 +208,12 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
                 "Ваш интервал пересекается с существующим бронированием."
             )
         else:
-            await callback.message.answer("❌ Этот слот уже занят (пересечение).")
+            await callback.message.answer("❌ Этот слот уже занят (конфликт).")
 
-        # Предложение альтернативы — ближайший свободный слот после выбранного
+        # Предлагаем ближайший свободный слот после выбранного
         slots = await get_available_slots(room_id, date)
         alt_slots = [s for s in slots if s[2] and s[0] > start]
+
         if alt_slots:
             alt_start, alt_end, _ = alt_slots[0]
             await callback.message.answer(
@@ -220,11 +227,11 @@ async def select_slot(callback: CallbackQuery, state: FSMContext):
                             callback_data=f"slot_{room_id}_{date.isoformat()}_{alt_start.hour}"
                         )
                     ]]
-                ),
+                )
             )
-            # НЕ очищаем state здесь — оставляем room_id и date для обработки альтернативы
+            # state НЕ очищаем — оставляем room_id и date
         else:
-            await state.clear()  # Если альтернатив нет — очищаем
+            await state.clear()
 
     await callback.answer()
 
@@ -359,3 +366,4 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
