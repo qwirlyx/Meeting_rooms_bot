@@ -136,6 +136,7 @@ async def process_custom_date(message: Message, state: FSMContext):
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
     slots = await get_available_slots(room_id, date)
+    print(f"DEBUG: date={date}, slots_count={len(slots)}")
 
     if not slots:
         msg_text = (
@@ -370,4 +371,5 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
 
