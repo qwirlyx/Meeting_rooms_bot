@@ -48,3 +48,4 @@ async def main():
 if __name__ == "__main__":
     # Запускаем основной event-loop бота.
     asyncio.run(main())
+
