@@ -7,6 +7,7 @@ from handlers import start, booking
 
 # Добавлено для webhook (для Render)
 from aiohttp import web
+from aiogram.types import Update  # Добавлено для Update
 
 # Создаём экземпляр бота и диспетчера один раз на всё приложение.
 bot = Bot(token=BOT_TOKEN)
@@ -21,9 +22,10 @@ async def main():
     await init_db()
     await seed_rooms()
 
-    # Настройка webhook для aiogram 3.x (без AIOHTTPWebApp)
+    # Настройка webhook для aiogram 3.x
     async def handle_webhook(request):
-        update = await bot.update_from_request(request)
+        text = await request.text()
+        update = Update.model_validate_json(text)  # Исправлено на model_validate_json
         await dp.feed_update(bot, update)
         return web.Response()
 
@@ -40,7 +42,7 @@ async def main():
     await bot.set_webhook(webhook_url)
 
     try:
-        await asyncio.Event().wait()  # Бесконечный цикл
+        await asyncio.Event().wait()  # Бесконечный цикл для работы
     finally:
         await bot.delete_webhook()
         await runner.cleanup()
