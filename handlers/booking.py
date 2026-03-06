@@ -85,7 +85,8 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
     room_id = data.get("room_id")
 
     if not room_id:
-        await callback.answer("Ошибка: комната не выбрана.")
+        await callback.message.answer("Ошибка: комната не выбрана.")
+        await callback.answer()
         return
 
     if callback.data == "date_custom":
@@ -98,17 +99,25 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         return
 
     date_str = callback.data.split("_")[1]
-    date = datetime.date.fromisoformat(date_str)
+    try:
+        date = datetime.date.fromisoformat(date_str)
+    except ValueError:
+        await callback.message.answer("Некорректная дата в кнопке.")
+        await callback.answer()
+        return
 
     today_msk = datetime.datetime.now(MOSCOW_TZ).date()
+    
     if date < today_msk:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
 
+    # Если дошли сюда — дата нормальная, показываем слоты
     await show_slots(callback, state, room_id, date)
+    
+    # Самое важное — всегда отвечаем на callback, чтобы убрать загрузку
     await callback.answer()
-
 
 @router.message(BookingState.date_selected)
 async def process_custom_date(message: Message, state: FSMContext):
@@ -137,6 +146,7 @@ async def process_custom_date(message: Message, state: FSMContext):
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
     slots = await get_available_slots(room_id, date)
+    print(f"DEBUG: date={date}, slots_count={len(slots)}")  # оставляем для отладки
 
     if not slots:
         msg_text = (
@@ -144,10 +154,13 @@ async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date
             "(рабочий день окончен или время уже прошло)"
         )
         keyboard = date_keyboard()
+        
         if isinstance(event, Message):
             await event.reply(msg_text, reply_markup=keyboard)
         else:
             await event.message.answer(msg_text, reply_markup=keyboard)
+        
+        await callback.answer()  # если event — это callback (на всякий случай)
         return
 
     keyboard = slots_keyboard(slots, room_id, date)
@@ -160,6 +173,10 @@ async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date
 
     await state.set_state(BookingState.slot_selected)
     await state.update_data({"date": date})
+
+    # Если event — это CallbackQuery — обязательно отвечаем, чтобы убрать "часики"
+    if hasattr(event, 'answer'):
+        await event.answer()
 
 # ────────────────────────────────────────────────
 #               Подтверждение бронирования
@@ -371,6 +388,7 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
 
 
 
