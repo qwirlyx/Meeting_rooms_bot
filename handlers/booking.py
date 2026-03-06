@@ -81,6 +81,8 @@ async def show_room_info(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("date_"))
 async def select_date(callback: CallbackQuery, state: FSMContext):
+    print(f"DEBUG: select_date вызвана, data = {callback.data}")  # ← добавь это
+
     data = await state.get_data()
     room_id = data.get("room_id")
 
@@ -98,25 +100,27 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    date_str = callback.data.split("_")[1]
     try:
+        date_str = callback.data.split("_")[1]
         date = datetime.date.fromisoformat(date_str)
-    except ValueError:
-        await callback.message.answer("Некорректная дата в кнопке.")
+    except Exception as e:
+        print(f"DEBUG: ошибка парсинга даты: {e}")
+        await callback.message.answer("Ошибка в данных даты.")
         await callback.answer()
         return
 
     today_msk = datetime.datetime.now(MOSCOW_TZ).date()
-    
+    print(f"DEBUG: выбранная дата = {date}, сегодня МСК = {today_msk}")  # ← добавь
+
     if date < today_msk:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
 
-    # Если дошли сюда — дата нормальная, показываем слоты
+    # Если дошли сюда — показываем слоты
     await show_slots(callback, state, room_id, date)
-    
-    # Самое важное — всегда отвечаем на callback, чтобы убрать загрузку
+
+    # Обязательно отвечаем, даже если что-то упало выше
     await callback.answer()
 
 @router.message(BookingState.date_selected)
@@ -145,41 +149,47 @@ async def process_custom_date(message: Message, state: FSMContext):
 # ────────────────────────────────────────────────
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
-    slots = await get_available_slots(room_id, date)
-    print(f"DEBUG: date={date}, slots_count={len(slots)}")  # полезно для отладки
+    print(f"DEBUG: show_slots вызвана для date={date}, room={room_id}")  # ← добавь
 
-    if not slots:
-        msg_text = (
-            "❌ Нет доступных слотов на эту дату\n"
-            "(рабочий день окончен или время уже прошло)"
-        )
-        keyboard = date_keyboard()
+    try:
+        slots = await get_available_slots(room_id, date)
+        print(f"DEBUG: date={date}, slots_count={len(slots)}")  # оставляем
+
+        if not slots:
+            msg_text = (
+                "❌ Нет доступных слотов на эту дату\n"
+                "(рабочий день окончен или время уже прошло)"
+            )
+            keyboard = date_keyboard()
+
+            if isinstance(event, Message):
+                await event.reply(msg_text, reply_markup=keyboard)
+            else:
+                await event.message.answer(msg_text, reply_markup=keyboard)
+
+            if hasattr(event, 'answer'):
+                await event.answer()
+            return
+
+        keyboard = slots_keyboard(slots, room_id, date)
+        msg_text = "Выберите удобный слот:"
 
         if isinstance(event, Message):
             await event.reply(msg_text, reply_markup=keyboard)
         else:
             await event.message.answer(msg_text, reply_markup=keyboard)
 
-        # Отвечаем на callback, если это CallbackQuery
+        await state.set_state(BookingState.slot_selected)
+        await state.update_data({"date": date})
+
         if hasattr(event, 'answer'):
             await event.answer()
 
-        return
-
-    keyboard = slots_keyboard(slots, room_id, date)
-    msg_text = "Выберите удобный слот:"
-
-    if isinstance(event, Message):
-        await event.reply(msg_text, reply_markup=keyboard)
-    else:
-        await event.message.answer(msg_text, reply_markup=keyboard)
-
-    await state.set_state(BookingState.slot_selected)
-    await state.update_data({"date": date})
-
-    # Отвечаем на callback, если это CallbackQuery
-    if hasattr(event, 'answer'):
-        await event.answer()
+    except Exception as e:
+        print(f"ERROR in show_slots: {type(e).__name__}: {str(e)}")
+        if hasattr(event, 'answer'):
+            await event.answer("Произошла ошибка при загрузке слотов")
+        await event.message.answer("Что-то пошло не так при получении слотов. Попробуйте позже.")
 # ────────────────────────────────────────────────
 #               Подтверждение бронирования
 # ────────────────────────────────────────────────
@@ -390,6 +400,7 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
 
 
 
