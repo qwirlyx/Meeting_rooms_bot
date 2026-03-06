@@ -32,6 +32,7 @@ from keyboards import (
 from services.booking_service import get_available_slots
 
 import datetime
+from time_utils import get_moscow_now
 
 router = Router()
 
@@ -138,7 +139,7 @@ async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date
     # Нормализуем дату (на случай если пришла строкой из state)
     if isinstance(date, str):
         date = datetime.date.fromisoformat(date)
-    now = datetime.datetime.now()
+    now = get_moscow_now()
     today = now.date()
 
     slots = await get_available_slots(room_id, date)
