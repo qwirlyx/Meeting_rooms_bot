@@ -135,7 +135,17 @@ async def process_custom_date(message: Message, state: FSMContext):
 # ────────────────────────────────────────────────
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
+    # Нормализуем дату (на случай если пришла строкой из state)
+    if isinstance(date, str):
+        date = datetime.date.fromisoformat(date)
+    now = datetime.datetime.now()
+    today = now.date()
+
     slots = await get_available_slots(room_id, date)
+
+    # Для «сегодня» оставляем только слоты, которые ещё не закончились (end > now)
+    if date == today:
+        slots = [(start, end, is_free) for start, end, is_free in slots if end > now]
 
     if not slots:
         msg_text = (
