@@ -95,8 +95,12 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    date_str = callback.data.split("_")[1]
-    date = datetime.date.fromisoformat(date_str)
+    # «Сегодня» — всегда текущий день в момент нажатия, а не дата из кнопки
+    if callback.data == "date_today":
+        date = datetime.date.today()
+    else:
+        date_str = callback.data.split("_")[1]
+        date = datetime.date.fromisoformat(date_str)
 
     if date < datetime.date.today():
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
