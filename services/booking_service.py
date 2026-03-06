@@ -3,6 +3,8 @@ import datetime
 
 def generate_slots(date):
     now = datetime.datetime.now()
+    if isinstance(date, str):
+        date = datetime.date.fromisoformat(date)
     is_today = date == now.date()
 
     start_hour = 9
