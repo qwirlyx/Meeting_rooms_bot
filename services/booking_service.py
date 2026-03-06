@@ -1,8 +1,9 @@
 import datetime
+from time_utils import get_moscow_now
 
 
 def generate_slots(date):
-    now = datetime.datetime.now()
+    now = get_moscow_now()
     if isinstance(date, str):
         date = datetime.date.fromisoformat(date)
     is_today = date == now.date()
