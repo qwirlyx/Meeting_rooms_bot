@@ -35,7 +35,8 @@ def date_keyboard():
     tomorrow = today + datetime.timedelta(days=1)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Сегодня", callback_data=f"date_{today.isoformat()}")],
+            # «Сегодня» — специальное значение, дата подставляется в момент нажатия
+            [InlineKeyboardButton(text="Сегодня", callback_data="date_today")],
             [InlineKeyboardButton(text="Завтра", callback_data=f"date_{tomorrow.isoformat()}")],
             [InlineKeyboardButton(text="Выбрать дату", callback_data="date_custom")]
         ]
