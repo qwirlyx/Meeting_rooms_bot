@@ -1,16 +1,14 @@
 import datetime
 
+
 def generate_slots(date):
     now = datetime.datetime.now()
     is_today = date == now.date()
-    start_hour = 9
-    if is_today:
-        current_hour = now.hour
-        start_hour = max(9, current_hour + 1)  # Начинаем с следующего часа
 
+    start_hour = 9
     end_hour = 18  # Рабочий день до 18:00
 
-    # Если текущее время > 18:00 и is_today, нет слотов
+    # Если текущее время >= 18:00 и is_today, нет слотов — рабочий день окончен
     if is_today and now.hour >= end_hour:
         return []
 
@@ -18,10 +16,14 @@ def generate_slots(date):
     for hour in range(start_hour, end_hour):
         start = datetime.datetime.combine(date, datetime.time(hour, 0))
         end = start + datetime.timedelta(hours=1)
-        # Для today пропускаем, если слот уже прошёл
+
+        # Для сегодняшнего дня полностью прошедшие интервалы не показываем,
+        # но если сейчас внутри слота (окно ещё идёт) — он остаётся доступным.
         if is_today and end <= now:
             continue
+
         slots.append((start, end))
+
     return slots
 
 
