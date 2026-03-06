@@ -48,6 +48,10 @@ def slots_keyboard(slots, room_id, date):
     today = now.date()
 
     for start, end, is_free in slots:
+        # Для «сегодня» не показываем слоты, которые уже полностью прошли
+        if date == today and end <= now:
+            continue
+
         time_str = f"{start.strftime('%H:%M')}–{end.strftime('%H:%M')}"
         emoji = "🟢" if is_free else "🔴"
 
