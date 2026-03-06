@@ -1,37 +1,27 @@
 import datetime
-from zoneinfo import ZoneInfo  
 
-# Московская таймзона (официальная для России)
-MOSCOW_TZ = ZoneInfo("Europe/Moscow")
-
-def generate_slots(date: datetime.date):
-    now = datetime.datetime.now(MOSCOW_TZ)
-    
+def generate_slots(date):
+    now = datetime.datetime.now()
     is_today = date == now.date()
     start_hour = 9
-    end_hour = 18
-
-    if is_today and now.hour >= end_hour:
-        return []
-
     if is_today:
         current_hour = now.hour
-        start_hour = max(9, current_hour + 1)
+        start_hour = max(9, current_hour + 1)  # Начинаем с следующего часа
 
-    if start_hour >= end_hour:
+    end_hour = 18  # Рабочий день до 18:00
+
+    # Если текущее время > 18:00 и is_today, нет слотов
+    if is_today and now.hour >= end_hour:
         return []
 
     slots = []
     for hour in range(start_hour, end_hour):
-        # ←←← Добавляем таймзону здесь
-        start = datetime.datetime.combine(date, datetime.time(hour, 0), tzinfo=MOSCOW_TZ)
-        end   = start + datetime.timedelta(hours=1)
-
+        start = datetime.datetime.combine(date, datetime.time(hour, 0))
+        end = start + datetime.timedelta(hours=1)
+        # Для today пропускаем, если слот уже прошёл
         if is_today and end <= now:
             continue
-
         slots.append((start, end))
-
     return slots
 
 
@@ -49,4 +39,3 @@ async def get_available_slots(room_id, date):
                 break
         available.append((start, end, is_free))
     return available
-
