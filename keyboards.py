@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import datetime  # Добавь это
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from time_utils import get_moscow_now
 
 def main_menu_keyboard():
     keyboard = ReplyKeyboardMarkup(
@@ -45,7 +46,7 @@ def date_keyboard():
 
 def slots_keyboard(slots, room_id, date):
     buttons = []
-    now = datetime.datetime.now()
+    now = get_moscow_now()
     today = now.date()
     # Сравниваем даты в одном формате (на случай если date пришла строкой)
     date_normalized = date if hasattr(date, "isoformat") else datetime.date.fromisoformat(str(date))
