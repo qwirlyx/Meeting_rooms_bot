@@ -1,7 +1,5 @@
-from zoneinfo import ZoneInfo
-MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import datetime  
+import datetime  # Добавь это
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 def main_menu_keyboard():
@@ -33,19 +31,12 @@ def rooms_keyboard(rooms):
     return keyboard
 
 def date_keyboard():
-    today = datetime.datetime.now(MOSCOW_TZ).date()
+    today = datetime.date.today()
     tomorrow = today + datetime.timedelta(days=1)
-
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(
-                text=f"Сегодня ({today.strftime('%d.%m')})", 
-                callback_data=f"date_{today.isoformat()}"
-            )],
-            [InlineKeyboardButton(
-                text=f"Завтра ({tomorrow.strftime('%d.%m')})", 
-                callback_data=f"date_{tomorrow.isoformat()}"
-            )],
+            [InlineKeyboardButton(text="Сегодня", callback_data=f"date_{today.isoformat()}")],
+            [InlineKeyboardButton(text="Завтра", callback_data=f"date_{tomorrow.isoformat()}")],
             [InlineKeyboardButton(text="Выбрать дату", callback_data="date_custom")]
         ]
     )
@@ -84,5 +75,4 @@ def my_bookings_keyboard(bookings):
         callback = f"cancel_{booking_id}"
         buttons.append([InlineKeyboardButton(text=f"❌ {text}", callback_data=callback)])
     
-
     return InlineKeyboardMarkup(inline_keyboard=buttons)
