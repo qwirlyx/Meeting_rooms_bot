@@ -1,5 +1,3 @@
-from zoneinfo import ZoneInfo
-MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 from aiogram import Router
 from aiogram.types import (
     CallbackQuery,
@@ -81,14 +79,11 @@ async def show_room_info(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("date_"))
 async def select_date(callback: CallbackQuery, state: FSMContext):
-    print(f"DEBUG: select_date вызвана, data = {callback.data}")  # ← добавь это
-
     data = await state.get_data()
     room_id = data.get("room_id")
 
     if not room_id:
-        await callback.message.answer("Ошибка: комната не выбрана.")
-        await callback.answer()
+        await callback.answer("Ошибка: комната не выбрана.")
         return
 
     if callback.data == "date_custom":
@@ -100,40 +95,27 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    try:
-        date_str = callback.data.split("_")[1]
-        date = datetime.date.fromisoformat(date_str)
-    except Exception as e:
-        print(f"DEBUG: ошибка парсинга даты: {e}")
-        await callback.message.answer("Ошибка в данных даты.")
-        await callback.answer()
-        return
+    date_str = callback.data.split("_")[1]
+    date = datetime.date.fromisoformat(date_str)
 
-    today_msk = datetime.datetime.now(MOSCOW_TZ).date()
-    print(f"DEBUG: выбранная дата = {date}, сегодня МСК = {today_msk}")  # ← добавь
-
-    if date < today_msk:
+    if date < datetime.date.today():
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
 
-    # Если дошли сюда — показываем слоты
     await show_slots(callback, state, room_id, date)
 
-    # Обязательно отвечаем, даже если что-то упало выше
-    await callback.answer()
 
 @router.message(BookingState.date_selected)
 async def process_custom_date(message: Message, state: FSMContext):
     try:
         text = message.text.strip()
+        # Пытаемся разобрать дату в формате DD.MM.YYYY, при неудаче — в ISO (YYYY-MM-DD)
         try:
             date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
         except ValueError:
             date = datetime.date.fromisoformat(text)
-
-        today_msk = datetime.datetime.now(MOSCOW_TZ).date()
-        if date < today_msk:
+        if date < datetime.date.today():
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
             return
 
@@ -142,54 +124,38 @@ async def process_custom_date(message: Message, state: FSMContext):
         await show_slots(message, state, room_id, date)
 
     except ValueError:
-        await message.answer("Неверный формат даты. Попробуйте DD.MM.YYYY или YYYY-MM-DD.")
+        await message.answer("Неверный формат даты. Попробуйте YYYY-MM-DD.")
 
 # ────────────────────────────────────────────────
 #               Показ слотов + проверка доступности
 # ────────────────────────────────────────────────
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
-    print(f"DEBUG: show_slots вызвана для date={date}, room={room_id}")  # ← добавь
+    slots = await get_available_slots(room_id, date)
 
-    try:
-        slots = await get_available_slots(room_id, date)
-        print(f"DEBUG: date={date}, slots_count={len(slots)}")  # оставляем
-
-        if not slots:
-            msg_text = (
-                "❌ Нет доступных слотов на эту дату\n"
-                "(рабочий день окончен или время уже прошло)"
-            )
-            keyboard = date_keyboard()
-
-            if isinstance(event, Message):
-                await event.reply(msg_text, reply_markup=keyboard)
-            else:
-                await event.message.answer(msg_text, reply_markup=keyboard)
-
-            if hasattr(event, 'answer'):
-                await event.answer()
-            return
-
-        keyboard = slots_keyboard(slots, room_id, date)
-        msg_text = "Выберите удобный слот:"
-
+    if not slots:
+        msg_text = (
+            "❌ Нет доступных слотов на эту дату\n"
+            "(рабочий день окончен или время уже прошло)"
+        )
+        keyboard = date_keyboard()
         if isinstance(event, Message):
             await event.reply(msg_text, reply_markup=keyboard)
         else:
             await event.message.answer(msg_text, reply_markup=keyboard)
+        return
 
-        await state.set_state(BookingState.slot_selected)
-        await state.update_data({"date": date})
+    keyboard = slots_keyboard(slots, room_id, date)
+    msg_text = "Выберите удобный слот:"
 
-        if hasattr(event, 'answer'):
-            await event.answer()
+    if isinstance(event, Message):
+        await event.reply(msg_text, reply_markup=keyboard)
+    else:
+        await event.message.answer(msg_text, reply_markup=keyboard)
 
-    except Exception as e:
-        print(f"ERROR in show_slots: {type(e).__name__}: {str(e)}")
-        if hasattr(event, 'answer'):
-            await event.answer("Произошла ошибка при загрузке слотов")
-        await event.message.answer("Что-то пошло не так при получении слотов. Попробуйте позже.")
+    await state.set_state(BookingState.slot_selected)
+    await state.update_data({"date": date})
+
 # ────────────────────────────────────────────────
 #               Подтверждение бронирования
 # ────────────────────────────────────────────────
@@ -400,10 +366,3 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
-
-
-
-
-
-
-
