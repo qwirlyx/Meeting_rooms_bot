@@ -146,7 +146,7 @@ async def process_custom_date(message: Message, state: FSMContext):
 
 async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date):
     slots = await get_available_slots(room_id, date)
-    print(f"DEBUG: date={date}, slots_count={len(slots)}")  # оставляем для отладки
+    print(f"DEBUG: date={date}, slots_count={len(slots)}")  # полезно для отладки
 
     if not slots:
         msg_text = (
@@ -154,13 +154,16 @@ async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date
             "(рабочий день окончен или время уже прошло)"
         )
         keyboard = date_keyboard()
-        
+
         if isinstance(event, Message):
             await event.reply(msg_text, reply_markup=keyboard)
         else:
             await event.message.answer(msg_text, reply_markup=keyboard)
-        
-        await callback.answer()  # если event — это callback (на всякий случай)
+
+        # Отвечаем на callback, если это CallbackQuery
+        if hasattr(event, 'answer'):
+            await event.answer()
+
         return
 
     keyboard = slots_keyboard(slots, room_id, date)
@@ -174,10 +177,9 @@ async def show_slots(event, state: FSMContext, room_id: int, date: datetime.date
     await state.set_state(BookingState.slot_selected)
     await state.update_data({"date": date})
 
-    # Если event — это CallbackQuery — обязательно отвечаем, чтобы убрать "часики"
+    # Отвечаем на callback, если это CallbackQuery
     if hasattr(event, 'answer'):
         await event.answer()
-
 # ────────────────────────────────────────────────
 #               Подтверждение бронирования
 # ────────────────────────────────────────────────
@@ -388,6 +390,7 @@ async def cancel_booking(callback: CallbackQuery):
     else:
 
         await callback.answer("Не удалось отменить бронь (возможно, уже удалена)")
+
 
 
 
