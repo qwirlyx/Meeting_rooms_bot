@@ -103,8 +103,15 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         date_str = callback.data.split("_")[1]
         date = datetime.date.fromisoformat(date_str)
 
+    # Запрещаем брони на прошедшие даты
     if date < datetime.date.today():
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
+        await callback.answer()
+        return
+
+    # Запрещаем бронирование на выходные (суббота и воскресенье)
+    if date.weekday() >= 5:
+        await callback.message.answer("❌ Нельзя бронировать переговорные на выходные (сб и вс).")
         await callback.answer()
         return
 
@@ -120,8 +127,15 @@ async def process_custom_date(message: Message, state: FSMContext):
             date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
         except ValueError:
             date = datetime.date.fromisoformat(text)
+
+        # Запрещаем брони на прошедшие даты
         if date < datetime.date.today():
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
+            return
+
+        # Запрещаем бронирование на выходные (суббота и воскресенье)
+        if date.weekday() >= 5:
+            await message.answer("❌ Нельзя бронировать переговорные на выходные (сб и вс).")
             return
 
         data = await state.get_data()
