@@ -32,7 +32,8 @@ def rooms_keyboard(rooms):
     return keyboard
 
 def date_keyboard():
-    today = datetime.date.today()
+    # Используем московскую дату, чтобы «Сегодня» и «Завтра» совпадали с местным временем
+    today = get_moscow_now().date()
     tomorrow = today + datetime.timedelta(days=1)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
