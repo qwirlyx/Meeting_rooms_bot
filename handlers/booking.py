@@ -96,15 +96,16 @@ async def select_date(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # «Сегодня» — всегда текущий день в момент нажатия, а не дата из кнопки
+    # «Сегодня» — всегда текущий день в момент нажатия (по московскому времени), а не дата из кнопки
+    today = get_moscow_now().date()
     if callback.data == "date_today":
-        date = datetime.date.today()
+        date = today
     else:
         date_str = callback.data.split("_")[1]
         date = datetime.date.fromisoformat(date_str)
 
-    # Запрещаем брони на прошедшие даты
-    if date < datetime.date.today():
+    # Запрещаем брони на прошедшие даты (относительно московской даты)
+    if date < today:
         await callback.message.answer("❌ Нельзя бронировать прошедшие даты.")
         await callback.answer()
         return
@@ -128,14 +129,19 @@ async def process_custom_date(message: Message, state: FSMContext):
         except ValueError:
             date = datetime.date.fromisoformat(text)
 
-        # Запрещаем брони на прошедшие даты
-        if date < datetime.date.today():
+        today = get_moscow_now().date()
+
+        # Запрещаем брони на прошедшие даты (относительно московской даты)
+        if date < today:
             await message.answer("❌ Нельзя бронировать прошедшие даты.")
+            # Возвращаемся в состояние выбора комнаты/даты, чтобы кнопки снова работали нормально
+            await state.set_state(BookingState.room_selected)
             return
 
         # Запрещаем бронирование на выходные (суббота и воскресенье)
         if date.weekday() >= 5:
             await message.answer("❌ Нельзя бронировать переговорные на выходные (сб и вс).")
+            await state.set_state(BookingState.room_selected)
             return
 
         data = await state.get_data()
@@ -144,6 +150,8 @@ async def process_custom_date(message: Message, state: FSMContext):
 
     except ValueError:
         await message.answer("Неверный формат даты. Попробуйте YYYY-MM-DD.")
+        # Выходим из режима ввода даты, чтобы текстовые кнопки снова работали
+        await state.set_state(BookingState.room_selected)
 
 # ────────────────────────────────────────────────
 #               Показ слотов + проверка доступности
